@@ -71,7 +71,7 @@ Both modes now render `masthead()` and bind the same separate Music, Sound and I
 | Authoritative physics | Host browser / standalone local simulation | One shared world with two owned characters |
 | Rendering, camera, input | Each browser, using PlayCanvas | Local implemented |
 | Inputs, snapshots, events | WebRTC DataChannels | Implemented; verification in Status |
-| Fallback transport | TURN service | Planned; service not identified |
+| Fallback transport | Owner VPS coturn | UDP/TCP relay; see Networking for verification and limits |
 
 ## Local simulation
 
@@ -135,7 +135,7 @@ Music is an original 92 BPM four-chord string/bass/brush pattern. Plucked string
 
 The two-player implementation keeps a single authoritative Rapier world, caller-bound room membership and browser-to-browser gameplay. Driver, passenger, cable carrier/operator and carried item ownership are explicit. Input expiry, action sequence, round epoch, complete snapshots, interpolation and explicit shared pause keep the two views coherent without per-frame ICP calls.
 
-Rooms are a separate persistent actor. Full SDP uses authenticated update replies during onboarding, replacing the original query/cursor proposal. The fixed offer/answer design has bounded storage and needs no candidate log. Existing records/profile storage, II derivation origin and solo rule keys are unchanged. A runtime same-origin ICE configuration endpoint permits short-lived TURN credentials, but its provider/service and real-network validation remain outstanding.
+Rooms are a separate persistent actor. Full SDP uses authenticated update replies during onboarding, replacing the original query/cursor proposal. The fixed offer/answer design has bounded storage and needs no candidate log. Existing records/profile storage, II derivation origin and solo rule keys are unchanged. A runtime ICE configuration endpoint supplies short-lived TURN credentials; see Networking for its VPS deployment and remaining separate-device validation.
 
 The canonical [network protocol and setup](./networking.md) documents every packet, field, timer, bound and state transition. Refer to Status for demonstrated evidence; implementation alone is not the public multiplayer acceptance gate.
 
@@ -234,3 +234,11 @@ Mops now embeds its generated Candid interface directly. The former `candid` ove
 The user requested lower token/time overhead after repeated browser work. Feature acceptance and later regression checks now have separate scopes: demonstrate a new integration once, then select checks for the actual changed boundaries. Complete driving is not a prerequisite for inspecting a later finish-screen style change. Persistence still requires access, retry and upgrade evidence. This changes the engineering workflow, not runtime architecture or gameplay.
 
 Current status is deliberately short; detailed release evidence is preserved in `status-history.md` and read on demand. This avoids repeatedly loading thousands of historical words while retaining the evidence behind earlier claims. Canonical behavior stays in its topic document, with no requirement to repeat the whole release narrative across all documentation.
+
+## Owner VPS TURN — 2026-09-07
+
+After a separate-network failure report, the user authorized coturn on the existing `contabo` VPS. Keep ICP signaling and browser host physics; relay encrypted packets through coturn only when ICE requires it. Allow an external HTTPS credential endpoint because the certified-assets canister cannot run the VPS credential issuer at a same-origin dynamic path. The frontend explicitly allows that origin in CSP and omits cookies; the HMAC secret remains on the VPS. Public issuance has origin filtering and resource quotas, not authenticated membership enforcement. See [Networking](./networking.md) for operational limits.
+
+## Guest playback timing — 2026-09-07
+
+After successful separate-network connection, the user reported jitter only on the joining player. The original buffer assigned packet arrival timestamps to poses, so varying delivery intervals changed apparent movement speed. Guest interpolation now uses existing host simulation ticks and a render-clock cursor, with a 100 ms startup/recovery cushion. Buffer exhaustion holds and refills instead of repeatedly chasing incoming packets. This changes presentation only: no new protocol fields, guest physics, prediction, host authority or TURN changes. It addresses a demonstrated buffer weakness; no measured diagnosis of the user's exact connection or claim of fully smooth play is made.

@@ -5,7 +5,17 @@ tags: [icp, deployment]
 
 # Cloud Engine deployment
 
-The game **IS IT THERE YET?** is deployed on the user's existing **nano-tema** Cloud Engine. Release 0.7.0 publishes Forest crossing, its new entry UI and account-bound expedition rooms. Frontend and rooms now run 0.8.0, profiles/records 0.6.1 and the separate statistics panel 0.2.0. TURN and separate-network multiplayer validation remain outstanding. [Play](https://z4wnx-uqaaa-aaabz-aadeq-cai.icp.net/) or open its [OpenCloud application page](https://opencloud.org/console/engines/engine-f70b19ae-a28e-445a-8ac5-5eaa27e23d71/apps/IS%20IT%20THERE%20YET%3F).
+## Guest smoothing 0.8.2 — 2026-09-07
+
+Built and deployed only frontend with `npm run icp:build -- frontend` and `npm run deploy:cloud -- frontend`. Controller metadata confirms 0.8.2; frontend module hash is `0x7a3df8def49a8265c2a4934e7b1565f239f5eab6e687fbeb3df5201c983e722c`. Read-only production smoke passed exact assets, headers, service IDs and API privacy. Records ID/hash/settings/memory matched the prior release; rooms, admin and VPS services were unchanged. Verification: 21 focused headless cases, strict build, docs check, and a 43.9-second actual local two-account guest walk/pause/restart flow with uneven snapshot delivery. Improved smoothness on the user's live connection still needs their confirmation.
+
+## TURN release 0.8.1 — 2026-09-07
+
+Published only `frontend` using `npm run deploy:cloud -- frontend` on the existing engine after owner reauthentication. An explicit `npm run icp:build -- frontend` and second frontend sync produced the same release; metadata is private by default, so verify with `npm exec -- icp canister metadata frontend service:version -e ic --identity rv-there-opencloud` (confirmed 0.8.1).
+
+Frontend module hash: `0xde2680a3a65f65763712f876ef6a02862e1211784e4da9b1f9c47b3acb8729fa`. Read-only smoke confirmed exact release assets, CSP, sibling IDs and API privacy. Forced UDP/TCP relay echoed data with both selected candidates `relay`, under the published CSP. Records ID/hash/settings/memory were unchanged; rooms and admin were not deployed. The frontend includes the existing local cargo-loss changes. No synthetic room, profile, result or statistics events were created. See [Networking](./networking.md#vps-operation) for VPS configuration, ports, quotas and the remaining physical-device/TLS limitations.
+
+The game **IS IT THERE YET?** is deployed on the user's existing **nano-tema** Cloud Engine. Release 0.7.0 publishes Forest crossing, its new entry UI and account-bound expedition rooms. Frontend now runs 0.8.2 and rooms 0.8.0, profiles/records 0.6.1 and the separate statistics panel 0.2.0. VPS TURN is deployed and forced UDP/TCP relay is verified; separate-device multiplayer validation remains outstanding. [Play](https://z4wnx-uqaaa-aaabz-aadeq-cai.icp.net/) or open its [OpenCloud application page](https://opencloud.org/console/engines/engine-f70b19ae-a28e-445a-8ac5-5eaa27e23d71/apps/IS%20IT%20THERE%20YET%3F).
 
 ## Co-op analytics 0.8.0 — published, 2026-09-06
 
@@ -166,7 +176,7 @@ The custom URL is an existing OpenCloud alias: a read before this change confirm
 | Public URL | `https://z4wnx-uqaaa-aaabz-aadeq-cai.icp.net/` |
 | Signaling canister | `zsua7-paaaa-aaabz-aadfq-cai`, deployed at 0.7.0 |
 | Custom domain | `https://isitthereyet.nano-tema--0v1.opencloud.org`; serves the existing frontend, shares the original II derivation origin |
-| TURN endpoint and credential issuer | Not identified |
+| TURN endpoint and credential issuer | Owner VPS: `https://turn.62-84-183-92.sslip.io/connection-config`; see Networking |
 | Installed tools | Project-local `@icp-sdk/icp-cli` 1.4.0 and `@icp-sdk/ic-wasm` 0.11.1, pinned in the npm lockfile |
 
 Never infer an engine ID, use unrelated existing canisters, expose credentials, or treat an arbitrary local identity as deployment access.

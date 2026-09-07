@@ -30,12 +30,13 @@ export class Peer {
   send(value:object,reliable=false){const channel=reliable?this.events:this.state;if(channel.readyState!=='open')return false;const data=JSON.stringify(value);if(data.length>networkConfig.maxMessageBytes)return false;if(channel.bufferedAmount>networkConfig.maxBufferedBytes){if(reliable)this.onLost('Connection is too slow. The expedition has stopped.');return false;}channel.send(data);return true;}
   close(){this.closed=true;this.connection.close();}
 }
-/** Optional same-origin service supplies short-lived TURN credentials. No bundled secrets. */
+/** Optional HTTPS service supplies short-lived TURN credentials. No bundled secrets. */
 export async function iceConfiguration():Promise<RTCConfiguration>{
   const endpoint=import.meta.env.VITE_ICE_CONFIG_PATH as string|undefined;
   if(!endpoint)return {}; // LAN/direct connections; public-network readiness requires TURN.
-  if(!endpoint.startsWith('/')||endpoint.startsWith('//'))throw new Error('ICE configuration must use a same-origin path.');
-  const response=await fetch(endpoint,{cache:'no-store',signal:AbortSignal.timeout(8000)});
+  const url=new URL(endpoint,window.location.origin);
+  if((url.origin!==window.location.origin&&url.protocol!=='https:')||url.username||url.password)throw new Error('ICE configuration must use a same-origin path or HTTPS URL.');
+  const response=await fetch(url,{credentials:'omit',cache:'no-store',signal:AbortSignal.timeout(8000)});
   if(!response.ok)throw new Error('Connection service is unavailable.');
   const body=await response.json();if(!Array.isArray(body.iceServers)||body.iceServers.length>8)throw new Error('Invalid connection service configuration.');
   return {iceServers:body.iceServers,iceTransportPolicy:body.iceTransportPolicy==='relay'?'relay':'all'};

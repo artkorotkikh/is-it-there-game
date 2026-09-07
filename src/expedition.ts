@@ -18,6 +18,7 @@ import { roomValue, type RoomsApi } from './services/rooms-api';
 import { Peer, iceConfiguration } from './network/peer';
 import { InputMailbox, SnapshotBuffer, mapKey, networkConfig, validAction, validTargetId, validSnapshot, validCrewProfile, type CrewProfile } from './network/protocol';
 import type { Snapshot } from './game/types';
+import { CargoLossNotice, cargoLossMarkup, updateCargoLoss } from './ui/cargo-loss';
 
 /** Expeditions share the account/garage, but never submit solo tickets or records. */
 export async function bootExpedition() {
@@ -56,6 +57,7 @@ export async function bootExpedition() {
     </div></section>
     <section id="exp-hud" class="hud hidden" aria-label="Expedition status">
       <div class="route-card"><span id="exp-map-name" class="eyebrow"></span><strong>Get every module to production.</strong><span id="exp-systems"></span><span id="exp-timer" class="run-timer"></span></div>
+      ${cargoLossMarkup()}
       <div class="top-actions"><button id="exp-pause-button" class="icon-button" aria-label="Pause expedition">Ⅱ</button></div>
       <div class="bottom-left"><span id="exp-role" class="role-tag"></span><div id="exp-prompt" class="interaction"></div><div id="exp-notice" class="notice" role="status"></div></div>
       <div class="dashboard"><div class="speed"><strong id="exp-speed">0</strong><span>KM/H</span></div></div>
@@ -83,9 +85,10 @@ export async function bootExpedition() {
   let connected=false,localReady=false,remoteReady=false,key='',epoch=0,sequence=0,lastAction=-1;
   let lastPacket=0,lastSend=0,lastHeartbeat=0,prompt='',notice='',remotePaused=false;
   const mailbox=new InputMailbox(),buffer=new SnapshotBuffer();
+  const cargoLoss=new CargoLossNotice();
   // A crew keeps the appearance agreed at entry; garage drafts apply before joining.
   const garage=new Garage(account,app,skin=>{if(!team)renderer.setSkin(skin);});
-  function reset(){sim.destroy();renderer.setTrack(mapTrack(map));renderer.setSkin((team==='guest'?remoteProfile:ownProfile)?.skin??account.profile?.skin??defaultSkin);sim=new Simulation('road',mapTrack(map));if(team==='host')sim.addPlayer();for(let i=0;i<60;i++)sim.step();previous=current=sim.snapshot();input.yaw=map.spawn.players[team==='guest'?1:0].yaw;input.pitch=.5;accumulator=0;audio.reset();renderer.resetCamera();mailbox.clear();buffer.clear();}
+  function reset(){cargoLoss.reset();sim.destroy();renderer.setTrack(mapTrack(map));renderer.setSkin((team==='guest'?remoteProfile:ownProfile)?.skin??account.profile?.skin??defaultSkin);sim=new Simulation('road',mapTrack(map));if(team==='host')sim.addPlayer();for(let i=0;i<60;i++)sim.step();previous=current=sim.snapshot();input.yaw=map.spawn.players[team==='guest'?1:0].yaw;input.pitch=.5;accumulator=0;audio.reset();renderer.resetCamera();mailbox.clear();buffer.clear();}
   function ownPrompt(){return current.interaction.target?current.interaction.prompt:team==='guest'?prompt:sim.prompt();}
   function setScreen(next:typeof screen){screen=next;input.active=next==='game';input.clear();sim.cancelInteractions();mailbox.clear();accumulator=0;for(const name of ['menu','lobby','hud','pause','finish'])show(`exp-${name}`,name==='hud'?next==='game':next===name);show('account-feedback',false);headerAccount();touch.update(current,input.active,ownPrompt());if(next==='game'){canvas.focus();void audio.start();}else{audio.pause();if(document.pointerLockElement)document.exitPointerLock();}}
   function stopTeam(){
@@ -167,7 +170,7 @@ export async function bootExpedition() {
     if(packet.type==='visibility'&&reliable&&typeof packet.hidden==='boolean'){remotePaused=packet.hidden;if(remotePaused)pause(false);get<HTMLButtonElement>('exp-resume').disabled=remotePaused;return;}
     if(team==='guest'&&['start','state','resume'].includes(String(packet.type))){
       if(!validSnapshot(packet.snapshot)||packet.snapshot.trackId!==map.id||packet.snapshot.player.id!=='guest-player'||typeof packet.epoch!=='number'||!Number.isSafeInteger(packet.epoch)||typeof packet.prompt!=='string'||typeof packet.message!=='string')return;
-      if(packet.type==='start'&&reliable&&packet.epoch>epoch){epoch=packet.epoch;buffer.clear();previous=current=packet.snapshot;setScreen('game');void telemetry?.report('started');}
+      if(packet.type==='start'&&reliable&&packet.epoch>epoch){epoch=packet.epoch;cargoLoss.reset();buffer.clear();previous=current=packet.snapshot;setScreen('game');void telemetry?.report('started');}
       if(packet.epoch!==epoch)return;
       if(packet.type==='resume'&&reliable&&!document.hidden){buffer.clear();previous=current=packet.snapshot;setScreen('game');}
       if(screen!=='game')return;
@@ -261,13 +264,14 @@ export async function bootExpedition() {
         const frame=buffer.sample(now);if(frame){previous=frame.previous;current=frame.current;interpolation=frame.alpha;}
       }else{
       accumulator+=dt;
-      while(accumulator>=config.physics.step&&steps<config.physics.maxSteps){previous=current;sim.stepPlayers({'local-player':input.frame(),...(team==='host'?{'guest-player':mailbox.read(now)}:{})});current=sim.snapshot();accumulator-=config.physics.step;steps++;}
+      while(accumulator>=config.physics.step&&steps<config.physics.maxSteps){previous=current;sim.stepPlayers({'local-player':input.frame(),...(team==='host'?{'guest-player':mailbox.read(now)}:{})});current=sim.snapshot();cargoLoss.advance(current,config.physics.step);accumulator-=config.physics.step;steps++;}
       if(steps===config.physics.maxSteps)accumulator=0;interpolation=accumulator/config.physics.step;
       if(team==='host'&&now-lastSend>=networkConfig.snapshotInterval*1000){lastSend=now;sendState();}
       }
+      if(team==='guest'&&screen==='game') cargoLoss.advance(current,dt);
       if(current.progress.finished){if(team==='host')sendState(true);text('exp-result',`${map.name} · ${formatTime(Math.round(current.progress.elapsed*1000))} · all modules in production`);setScreen('finish');get('exp-again').focus();}
     }
-    renderer.draw(previous,current,screen==='game'?interpolation:1,input.yaw,input.pitch,screen==='menu',dt);audio.update(current,screen==='game',input.frame());
+    renderer.draw(previous,current,screen==='game'?interpolation:1,input.yaw,input.pitch,screen==='menu',dt);audio.update(current,screen==='game',input.frame());show('cargo-loss',screen==='game');updateCargoLoss(document,cargoLoss,screen==='game');
     indicator.update(current,p=>renderer.marker(p),screen==='game',touch.enabled);
     if((hudTime+=dt)<.08)return;hudTime=0;
     const kit=current.fieldKit!,carried=kit.items.find(item=>item.id===kit.carriedId);

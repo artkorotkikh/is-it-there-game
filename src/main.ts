@@ -3,7 +3,7 @@ import { tracks, type Track } from './game/tracks';
 import { Account, formatTime, type DeliveryRun } from './services/account';
 import { Garage } from './ui/garage';
 import { masthead, modeSwitch } from './ui/masthead';
-import { CargoLossNotice, cargoLossCopy } from './ui/cargo-loss';
+import { CargoLossNotice, cargoLossMarkup, updateCargoLoss } from './ui/cargo-loss';
 import { GameAudio } from './game/audio';
 import { config, moduleDefinitions } from './game/config';
 import { Input } from './game/input';
@@ -40,10 +40,7 @@ app.innerHTML = `
     <div class="route-card"><span class="eyebrow"><span id="route-name">THE OLD ROAD</span><span id="route-number">01</span></span><strong id="objective">Load the bus.</strong><div class="route-progress"><i id="route-fill"></i></div><span id="objective-note">Three canisters. Three matching sockets.</span><span id="run-timer" class="run-timer">0:00.00 · GUEST RUN</span></div>
     <div class="module-rack" aria-label="Canister systems">${canisterTypes.map(type => `<div id="module-${type}" class="module-card" style="--module-color:${moduleDefinitions[type].color}"><span>${moduleDefinitions[type].number} / ${moduleDefinitions[type].symbol}</span><strong>${moduleDefinitions[type].label}</strong><small id="module-state-${type}">UNLOADED</small></div>`).join('')}</div>
     <div id="system-warning" class="system-warning hidden" role="status"><strong id="warning-title"></strong><span id="warning-detail"></span></div>
-    <div id="cargo-loss" class="cargo-loss" role="status" aria-live="polite" aria-atomic="true" aria-hidden="true">
-      <strong id="cargo-loss-title"></strong><p id="cargo-loss-detail"></p>
-      <span id="cargo-loss-action"></span>
-    </div>
+    ${cargoLossMarkup()}
     ${canisterTypes.map(type => `<div id="marker-${type}" class="cargo-marker hidden" style="--module-color:${moduleDefinitions[type].color}"><b>${moduleDefinitions[type].symbol}</b><span id="marker-label-${type}"></span></div>`).join('')}
     <div class="top-actions"><button id="pause-button" class="icon-button" aria-label="Pause game">Ⅱ</button></div>
     <div class="bottom-left"><span id="role" class="role-tag">ON FOOT</span><div id="prompt" class="interaction"></div><div class="hold-track hidden" id="hold-track"><i id="hold-fill"></i></div><div id="notice" class="notice" role="status" aria-live="polite"></div></div>
@@ -275,16 +272,7 @@ async function boot() {
     renderer.draw(previous, current, screen === 'game' ? accumulator / config.physics.step : 1, input.yaw, input.pitch, screen === 'menu', dt);
     const lossVisible = screen === 'game' && cargoLoss.event !== null;
     show('cargo-loss', screen === 'game');
-    get('cargo-loss').classList.toggle('is-visible', lossVisible);
-    get('cargo-loss').setAttribute('aria-hidden', String(!lossVisible));
-    if (cargoLoss.event) {
-      const type = cargoLoss.event.type, copy = cargoLossCopy[type];
-      get('cargo-loss').dataset.type = type;
-      text('cargo-loss-title', copy.title); text('cargo-loss-detail', copy.detail); text('cargo-loss-action', copy.action);
-      const appearance = cargoLoss.appearance;
-      get('cargo-loss').style.setProperty('--loss-opacity', String(appearance.opacity));
-      get('cargo-loss').style.setProperty('--loss-scale', String(appearance.scale));
-    }
+    updateCargoLoss(document, cargoLoss, screen === 'game');
     for (const item of current.canisters) {
       const visible = screen === 'game' && item.phase === 'loose';
       show(`marker-${item.type}`, visible);

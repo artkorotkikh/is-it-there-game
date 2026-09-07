@@ -8,7 +8,7 @@ canisters:
           - npm run build
         metadata:
           - name: service:version
-            value: "0.8.0"
+            value: "0.8.2"
     settings:
       environment_variables:
         __META_PROJECT: "IS IT THERE YET?"

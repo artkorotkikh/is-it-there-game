@@ -72,3 +72,32 @@ it('no simulation time means no expiration; reset accepts a fresh event sequence
   const fresh = create(); fresh.canisters.eject('cycles'); notice.advance(fresh.snapshot(), 0);
   expect(notice.event?.type).toBe('cycles'); expect(notice.event?.sequence).toBe(1);
 });
+
+it('ignores malformed events and consumes skipped or reordered valid sequences once', () => {
+  const sim = create(), notice = new CargoLossNotice(), snapshot = sim.snapshot();
+  snapshot.canisters.find(item => item.type === 'cycles')!.phase = 'loose';
+  snapshot.events = [
+    { sequence: 4, kind: 'eject', type: 'skills' },
+    { sequence: 3, kind: 'eject', type: 'cycles' },
+    { sequence: Number.MAX_SAFE_INTEGER + 1, kind: 'eject', type: 'winch' } as never,
+    { sequence: 5, kind: 'eject', type: 'cycles' },
+  ];
+  notice.advance(snapshot, 0);
+  expect(notice.event?.type).toBe('cycles');
+  expect(notice.event?.sequence).toBe(5);
+  notice.advance(snapshot, 1);
+  expect(notice.remaining).toBe(cargoLossSeconds - 1);
+});
+
+it('freezes while paused and resumes with the remaining reading time', () => {
+  const sim = create(), notice = new CargoLossNotice();
+  sim.canisters.eject('winch'); notice.advance(sim.snapshot(), 0);
+  notice.advance(sim.snapshot(), .75);
+  const remaining = notice.remaining;
+  notice.advance(sim.snapshot(), 0);
+  expect(notice.remaining).toBe(remaining);
+  notice.advance(sim.snapshot(), remaining - .01);
+  expect(notice.event?.type).toBe('winch');
+  notice.advance(sim.snapshot(), .01);
+  expect(notice.event).toBeNull();
+});

@@ -1,0 +1,6 @@
+
+turn.62-84-183-92.sslip.io {
+    reverse_proxy 127.0.0.1:9187 {
+        header_up X-Turn-Client-IP {remote_host}
+    }
+}

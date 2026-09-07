@@ -1,4 +1,4 @@
-import {neutralInput,type InputFrame,type Action,type Snapshot} from '../game/types';
+import {neutralInput,canisterTypes,type InputFrame,type Action,type Snapshot} from '../game/types';
 import type {MapDefinition} from '../game/maps/schema';
 import {config} from '../game/config';
 import {paintColors,wheelStyles,decalStyles,type BusSkin} from '../game/skin';
@@ -20,6 +20,7 @@ const rotation=(v:unknown)=>vector(v)&&obj(v)&&num(v.w);
 const flag=(v:unknown)=>typeof v==='boolean';
 const str=(v:unknown)=>typeof v==='string'&&v.length<512;
 const nullableString=(v:unknown)=>v===null||str(v);
+const eventKinds=['pickup','dock','drop','eject','rescue','impact','rattle','ready'];
 const all=(o:Record<string,unknown>,keys:string[],test:(v:unknown)=>boolean)=>keys.every(k=>test(o[k]));
 const list=(v:unknown,min:number,max:number,test:(v:unknown)=>boolean)=>Array.isArray(v)&&v.length>=min&&v.length<=max&&v.every(test);
 function player(v:unknown){return obj(v)&&['local-player','guest-player'].includes(String(v.id))&&vector(v.position)&&num(v.yaw)&&all(v,['driving','grounded','passenger'],flag);}
@@ -37,7 +38,7 @@ export function validSnapshot(v:unknown):v is Snapshot{
     obj(w)&&['stowed','carried','attached'].includes(String(w.phase))&&all(w,['length','span','tension'],num)&&all(w,['mount','end'],vector)&&nullableString(w.carrierId)&&nullableString(w.operatorId)&&
     obj(p)&&all(p,['enteredDitch','recovered','finished'],flag)&&num(p.elapsed)&&obj(p.ejected)&&all(p.ejected,['winch','cycles','skills'],flag)&&
     list(v.canisters,3,3,c=>obj(c)&&str(c.id)&&['winch','cycles','skills'].includes(String(c.type))&&['loose','carried','docked'].includes(String(c.phase))&&nullableString(c.carrierId)&&all(c,['position','velocity','angularVelocity','socket'],vector)&&rotation(c.rotation)&&num(c.rattle))&&
-    list(v.events,0,64,e=>obj(e)&&num(e.sequence)&&str(e.kind)&&str(e.type));
+    list(v.events,0,64,e=>obj(e)&&typeof e.sequence==='number'&&Number.isSafeInteger(e.sequence)&&e.sequence>0&&eventKinds.includes(String(e.kind))&&canisterTypes.includes(String(e.type) as typeof canisterTypes[number]));
 }
 export function parsePacket(raw:unknown):Record<string,unknown>|null{
   if(typeof raw!=='string'||raw.length>networkConfig.maxMessageBytes)return null;
@@ -54,11 +55,37 @@ export class InputMailbox{
   read(now:number){return now-this.at>networkConfig.inputExpiryMs?{...neutralInput(),yaw:this.frame.yaw}:this.frame;}
   clear(){this.frame={...neutralInput(),yaw:this.frame.yaw};this.at=-Infinity;}
 }
+/** Render host simulation time, not packet arrival spacing. Never predict physics.
+ * Start/recover only after 100 ms of host history is available. An underrun holds
+ * the latest pose and refills that cushion instead of chasing every new packet.
+ */
 export class SnapshotBuffer{
   private frames:{at:number;snapshot:Snapshot}[]=[];
-  clear(){this.frames=[];}
-  push(snapshot:Snapshot,now:number){if(snapshot.tick<=(this.frames.at(-1)?.snapshot.tick??-1))return;this.frames.push({at:now,snapshot});if(this.frames.length>12)this.frames.shift();}
-  sample(now:number){const target=now-networkConfig.interpolationMs;while(this.frames.length>2&&this.frames[1].at<=target)this.frames.shift();const a=this.frames[0],b=this.frames[1]??a;if(!a)return null;return {previous:a.snapshot,current:b.snapshot,alpha:a===b?1:Math.max(0,Math.min(1,(target-a.at)/(b.at-a.at)))};}
+  private cursor:number|null=null;
+  private sampledAt:number|null=null;
+  private buffering=true;
+  clear(){this.frames=[];this.cursor=null;this.sampledAt=null;this.buffering=true;}
+  push(snapshot:Snapshot,_now:number){
+    if(snapshot.tick<=(this.frames.at(-1)?.snapshot.tick??-1))return;
+    this.frames.push({at:snapshot.tick*config.physics.step*1000,snapshot});
+    if(this.frames.length>12)this.frames.shift();
+  }
+  sample(now:number){
+    const first=this.frames[0],latest=this.frames.at(-1);if(!first||!latest)return null;
+    this.cursor=Math.max(this.cursor??first.at,first.at);
+    const elapsed=this.sampledAt===null?0:Math.max(0,now-this.sampledAt);
+    this.sampledAt=Math.max(this.sampledAt??now,now);
+    if(this.buffering){
+      if(latest.at-this.cursor>=networkConfig.interpolationMs-1e-6)this.buffering=false;
+    }else{
+      const target=this.cursor+elapsed;
+      this.cursor=Math.min(target,latest.at);
+      if(target>latest.at+1e-6)this.buffering=true;
+    }
+    while(this.frames.length>2&&this.frames[1].at<=this.cursor)this.frames.shift();
+    const a=this.frames[0],b=this.frames[1]??a;
+    return {previous:a.snapshot,current:b.snapshot,alpha:a===b?1:Math.max(0,Math.min(1,(this.cursor-a.at)/(b.at-a.at)))};
+  }
 }
 // Prop dimensions are shared by physics and rendering; mixed tunings must not join.
 export async function mapKey(map:MapDefinition){const hash=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(JSON.stringify({map,fieldKit:config.fieldKit})));return `${map.id}:${map.version}:${Array.from(new Uint8Array(hash),n=>n.toString(16).padStart(2,'0')).join('')}:net3`;}
