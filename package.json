@@ -1,0 +1,48 @@
+{
+  "name": "rv-there-game",
+  "private": true,
+  "version": "0.8.0",
+  "type": "module",
+  "engines": {
+    "node": ">=22.12.0"
+  },
+  "scripts": {
+    "dev": "vite --host 127.0.0.1",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:browser": "playwright test",
+    "docs:check": "node scripts/check-docs.mjs",
+    "check": "npm run typecheck && npm test && npm run docs:check",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview --host 127.0.0.1",
+    "icp:login": "icp identity link web rv-there-opencloud --auth https://opencloud.org",
+    "icp:build": "icp build -e ic",
+    "deploy:cloud": "icp deploy -e ic --subnet uw5ql-smzbi-sadfn-urdoy-irsne-27mwo-qbzpb-3oinv-yxour-533bx-fae --identity rv-there-opencloud",
+    "backend:build": "mops build records && cp .mops/.build/records.did src/backend/records.did",
+    "backend:check": "mops check records",
+    "test:backend": "npm run backend:build && vitest run --config vitest.backend.config.ts",
+    "stats:cloud": "icp canister call records statistics '()' --candid src/backend/records.did --query -e ic --identity rv-there-opencloud",
+    "maps:check": "node scripts/check-maps.mjs",
+    "maps:new": "node scripts/new-map.mjs",
+    "rooms:build": "mops build rooms",
+    "test:rooms": "npm run rooms:build && vitest run --config vitest.backend.config.ts backend-tests/rooms.test.ts",
+    "admin:build": "tsc --noEmit && vite build --config vite.admin.config.ts"
+  },
+  "dependencies": {
+    "@dimforge/rapier3d-compat": "0.20.0",
+    "@icp-sdk/auth": "8.0.3",
+    "@icp-sdk/core": "5.4.0",
+    "playcanvas": "2.22.0"
+  },
+  "devDependencies": {
+    "@dfinity/pic": "0.23.0",
+    "@icp-sdk/ic-wasm": "0.11.1",
+    "@icp-sdk/icp-cli": "1.4.0",
+    "@playwright/test": "1.63.0",
+    "@types/node": "26.4.1",
+    "ic-mops": "3.2.0",
+    "typescript": "7.0.2",
+    "vite": "8.2.2",
+    "vitest": "5.0.0"
+  }
+}

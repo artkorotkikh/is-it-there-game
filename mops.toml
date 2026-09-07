@@ -1,0 +1,11 @@
+[toolchain]
+moc = "1.15.1"
+
+[dependencies]
+core = "2.6.1"
+
+[canisters.records]
+main = "src/backend/main.mo"
+
+[canisters.rooms]
+main = "src/backend/rooms.mo"

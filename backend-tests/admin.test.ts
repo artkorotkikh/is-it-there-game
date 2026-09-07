@@ -1,0 +1,72 @@
+import { afterAll, beforeAll, expect, it } from 'vitest';
+import { PocketIc, PocketIcServer, createIdentity, type Actor } from '@dfinity/pic';
+import { Principal } from '@icp-sdk/core/principal';
+import { adminIdl, type AdminApi } from '../src/admin/api';
+import { idlFactory, unwrap, type RecordsApi } from '../src/services/records-api';
+
+let server: PocketIcServer, pic: PocketIc, admin: Actor<AdminApi>, records: Actor<RecordsApi>, canisterId: Principal;
+const controller=createIdentity('admin-controller'), reader=createIdentity('admin-reader'), outsider=createIdentity('admin-outsider');
+const wasm='.mops/.build/records.wasm';
+beforeAll(async()=>{
+  server=await PocketIcServer.start();pic=await PocketIc.create(server.getUrl());
+  const fixture=await pic.setupCanister<RecordsApi>({idlFactory,wasm,sender:controller.getPrincipal()});
+  records=fixture.actor;canisterId=fixture.canisterId;admin=pic.createActor<AdminApi>(adminIdl,canisterId);
+},60000);
+afterAll(async()=>{await pic?.tearDown();await server?.stop();});
+
+it('only a controller grants bounded, idempotent read access; readers cannot delegate or read private player data',async()=>{
+  expect(await admin.adminStatistics()).toHaveProperty('err');
+  expect(await admin.setStatisticsReader(reader.getPrincipal(),true)).toHaveProperty('err');
+  admin.setIdentity(controller);
+  expect(await admin.setStatisticsReader(Principal.anonymous(),true)).toHaveProperty('err');
+  unwrap(await admin.setStatisticsReader(reader.getPrincipal(),true));unwrap(await admin.setStatisticsReader(reader.getPrincipal(),true));
+  expect(unwrap(await admin.listStatisticsReaders())).toHaveLength(1);
+  records.setIdentity(controller);const before=unwrap(await records.statistics());
+  admin.setIdentity(reader);expect(unwrap(await admin.adminStatistics())).toEqual(before);
+  expect(await admin.setStatisticsReader(outsider.getPrincipal(),true)).toHaveProperty('err');expect(await admin.listStatisticsReaders()).toHaveProperty('err');
+  records.setIdentity(controller);unwrap(await records.ensureProfile());
+  records.setIdentity(reader);expect(unwrap(await records.myRecords())).toEqual([]);expect(unwrap(await records.myProfile())).toEqual([]);
+  expect(await records.statistics()).toHaveProperty('err');
+  admin.setIdentity(outsider);expect(await admin.adminStatistics()).toHaveProperty('err');
+  admin.setIdentity(controller);
+  for(let i=0;i<7;i++)unwrap(await admin.setStatisticsReader(createIdentity(`reader-${i}`).getPrincipal(),true));
+  expect(await admin.setStatisticsReader(outsider.getPrincipal(),true)).toHaveProperty('err');
+  unwrap(await admin.setStatisticsReader(reader.getPrincipal(),true));
+  expect(unwrap(await admin.listStatisticsReaders())).toHaveLength(8);
+});
+it('grants survive upgrade; revocation and controller rotation take effect on the next query',async()=>{
+  await pic.upgradeCanister({canisterId,wasm,sender:controller.getPrincipal(),upgradeModeOptions:{skip_pre_upgrade:[],wasm_memory_persistence:[{keep:null}]}});
+  admin.setIdentity(reader);expect(await admin.adminStatistics()).toHaveProperty('ok');
+  admin.setIdentity(controller);unwrap(await admin.setStatisticsReader(reader.getPrincipal(),false));
+  admin.setIdentity(reader);expect(await admin.adminStatistics()).toHaveProperty('err');
+  admin.setIdentity(controller);unwrap(await admin.setStatisticsReader(reader.getPrincipal(),true));
+  await pic.updateCanisterSettings({canisterId,sender:controller.getPrincipal(),controllers:[outsider.getPrincipal()]});
+  admin.setIdentity(reader);expect(await admin.adminStatistics()).toHaveProperty('err');
+  admin.setIdentity(controller);expect(await admin.adminStatistics()).toHaveProperty('err');
+  expect(await admin.setStatisticsReader(reader.getPrincipal(),true)).toHaveProperty('err');
+  admin.setIdentity(outsider);expect(unwrap(await admin.listStatisticsReaders())).toEqual([]);
+  unwrap(await admin.setStatisticsReader(reader.getPrincipal(),true));
+  admin.setIdentity(reader);expect(await admin.adminStatistics()).toHaveProperty('ok');
+});
+it.skipIf(!process.env.RECORDS_UPGRADE_FROM)('upgrades real 0.6.0 counters, capabilities, claims and profile without changing their values',async()=>{
+  const fixture=await pic.setupCanister<RecordsApi>({idlFactory,wasm:process.env.RECORDS_UPGRADE_FROM!,sender:controller.getPrincipal()});
+  const old=fixture.actor;old.setIdentity(reader);const profile=unwrap(await old.ensureProfile());
+  const key=new Uint8Array(32).fill(91),pendingKey=new Uint8Array(32).fill(92);
+  unwrap(await old.gameOpened(new Uint8Array(32).fill(93)));
+  const run=unwrap(await old.beginDelivery(key,'old-road',5n));
+  const pending=unwrap(await old.beginDelivery(pendingKey,'relay-ridge',4n));
+  await pic.advanceTime(60000);await pic.tick();unwrap(await old.completeDelivery(key,run.id,59000n));
+  const receipt=unwrap(await old.claimDelivery(key,run.id,false));
+  old.setIdentity(controller);const before=unwrap(await old.statistics());
+  await pic.upgradeCanister({canisterId:fixture.canisterId,wasm,sender:controller.getPrincipal(),upgradeModeOptions:{skip_pre_upgrade:[],wasm_memory_persistence:[{keep:null}]}});
+  expect(unwrap(await old.statistics())).toEqual(before);
+  old.setIdentity(reader);expect(unwrap(await old.myProfile())).toEqual([profile]);expect(unwrap(await old.myRecords())).toEqual([receipt.record]);
+  expect(unwrap(await old.claimDelivery(key,run.id,false))).toEqual(receipt);
+  unwrap(await old.completeDelivery(pendingKey,pending.id,59000n));unwrap(await old.claimDelivery(pendingKey,pending.id,false));
+  const upgraded=pic.createActor<AdminApi>(adminIdl,fixture.canisterId);upgraded.setIdentity(reader);expect(await upgraded.adminStatistics()).toHaveProperty('err');
+  upgraded.setIdentity(controller);expect(unwrap(await upgraded.listStatisticsReaders())).toEqual([]);
+  unwrap(await upgraded.setStatisticsReader(reader.getPrincipal(),true));upgraded.setIdentity(reader);
+  const after=unwrap(await upgraded.adminStatistics());expect(after.opens).toBe(before.opens);expect(after.since).toBe(before.since);
+  expect(after.courses.find(row=>row.track==='old-road')).toEqual(before.courses.find(row=>row.track==='old-road'));
+  expect(after.courses.find(row=>row.track==='relay-ridge')).toMatchObject({starts:1n,finishes:1n,saved:1n});
+});

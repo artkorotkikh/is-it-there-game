@@ -1,0 +1,29 @@
+{
+  "version": 1,
+  "skills": {
+    "cloud-engine-canisters": {
+      "source": "dfinity/icskills",
+      "sourceType": "github",
+      "skillPath": "skills/cloud-engine-canisters/SKILL.md",
+      "computedHash": "d51102ce4156dcf0f8555d47ed26f67c18b1506342b8eebbad150da27b2ef1b1"
+    },
+    "deploy-to-cloud-engine": {
+      "source": "dfinity/icskills",
+      "sourceType": "github",
+      "skillPath": "skills/deploy-to-cloud-engine/SKILL.md",
+      "computedHash": "4807bb468816248673f599f3b2357632b3fd3ca3c413f95e7f4d9d9f32997f8c"
+    },
+    "icp-cli": {
+      "source": "dfinity/icskills",
+      "sourceType": "github",
+      "skillPath": "skills/icp-cli/SKILL.md",
+      "computedHash": "cdb9b154d51ca31ff30a194cb695d92697bce181bba9bb44f53f345402ef6e78"
+    },
+    "static-site": {
+      "source": "dfinity/icskills",
+      "sourceType": "github",
+      "skillPath": "skills/static-site/SKILL.md",
+      "computedHash": "183a922ba5b4c0a1dc09adc5c26752e54d6a1e16f0ef6072c9b2b35df36f0d62"
+    }
+  }
+}

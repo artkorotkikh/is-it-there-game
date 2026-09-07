@@ -1,0 +1,47 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="480" height="320" viewBox="0 0 480 320" fill="none">
+  <defs>
+    <linearGradient id="forest" x1="42" y1="12" x2="427" y2="350" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#73816A"/><stop offset="1" stop-color="#354F41"/>
+    </linearGradient>
+    <g id="tree">
+      <path d="M0 26V-15" stroke="#253F35" stroke-width="3" stroke-linecap="round"/>
+      <path d="M0-35-18-5H-11L-24 14H24L11-5H18Z" fill="currentColor"/>
+      <path d="M0-31V14H24L11-5H18Z" fill="#233E33" fill-opacity=".18"/>
+    </g>
+  </defs>
+  <path fill="url(#forest)" d="M0 0H480V320H0z"/>
+  <circle cx="380" cy="61" r="28" fill="#DED1A3"/>
+  <path d="M-34 152C58 39 109 87 178 75C269 59 237-36 378-29L521 11V328H-34Z" fill="#425F4A" fill-opacity=".52"/>
+  <path d="M-22 233C43 155 106 199 179 179C246 160 220 80 331 101C404 115 422 65 502 72V341H-22Z" fill="#294A3C" fill-opacity=".42"/>
+  <path d="M-36 278C53 240 99 302 188 260C254 229 314 292 362 240C407 191 452 221 513 186V336H-36Z" fill="#203E33" fill-opacity=".45"/>
+  <g color="#80916D">
+    <use href="#tree" transform="translate(48 80) scale(.9)"/>
+    <use href="#tree" transform="translate(86 126) scale(.68)"/>
+    <use href="#tree" transform="translate(302 55) scale(.7)"/>
+    <use href="#tree" transform="translate(411 166) scale(1.05)"/>
+    <use href="#tree" transform="translate(451 125) scale(.62)"/>
+  </g>
+  <g stroke="#1D382E" stroke-width="12" stroke-opacity=".24" stroke-linecap="round">
+    <path d="M239 293C221 245 112 252 120 201C128 151 190 191 163 122C148 86 204 92 240 48"/>
+    <path d="M239 293C235 238 264 236 243 189C224 146 275 128 253 92C242 74 239 57 240 48"/>
+    <path d="M239 293C258 250 378 264 364 211C350 157 309 186 331 132C351 80 270 109 240 48"/>
+  </g>
+  <g stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M239 293C221 245 112 252 120 201C128 151 190 191 163 122C148 86 204 92 240 48" stroke="#E3D7AE" stroke-dasharray="2 9"/>
+    <path d="M239 293C235 238 264 236 243 189C224 146 275 128 253 92C242 74 239 57 240 48" stroke="#EDBD7C"/>
+    <path d="M239 293C258 250 378 264 364 211C350 157 309 186 331 132C351 80 270 109 240 48" stroke="#B9CAB1" stroke-dasharray="8 7"/>
+  </g>
+  <g color="#577555">
+    <use href="#tree" transform="translate(69 249) scale(1.2)"/>
+    <use href="#tree" transform="translate(175 216) scale(.87)"/>
+    <use href="#tree" transform="translate(297 219) scale(.66)"/>
+    <use href="#tree" transform="translate(411 302) scale(1.45)"/>
+    <use href="#tree" transform="translate(17 326) scale(1.5)"/>
+  </g>
+  <circle cx="240" cy="48" r="9" fill="#EDBD7C" stroke="#34513F" stroke-width="5"/>
+  <circle cx="239" cy="293" r="7" fill="#ECDDBA" stroke="#34513F" stroke-width="4"/>
+  <g fill="#D9C68B" fill-opacity=".55">
+    <circle cx="105" cy="56" r="2"/><circle cx="377" cy="112" r="2"/><circle cx="195" cy="130" r="2"/>
+    <circle cx="326" cy="295" r="2"/><circle cx="35" cy="175" r="2"/><circle cx="454" cy="235" r="2"/>
+  </g>
+</svg>

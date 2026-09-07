@@ -1,0 +1,124 @@
+type Ticket = 
+ record {
+   id: nat;
+   rulesVersion: nat;
+   startedAt: int;
+   track: text;
+ };
+type StatisticsReader = 
+ record {
+   grantedBy: principal;
+   reader: principal;
+ };
+type Statistics = 
+ record {
+   courses: vec CourseStats;
+   opens: nat;
+   since: int;
+ };
+type Skin = 
+ record {
+   color: text;
+   decal: text;
+   wheels: text;
+ };
+type Result_8 = 
+ variant {
+   err: text;
+   ok: Receipt;
+ };
+type Result_7 = 
+ variant {
+   err: text;
+   ok: vec Leader;
+ };
+type Result_6 = 
+ variant {
+   err: text;
+   ok: vec StatisticsReader;
+ };
+type Result_5 = 
+ variant {
+   err: text;
+   ok: opt Profile;
+ };
+type Result_4 = 
+ variant {
+   err: text;
+   ok: vec Record;
+ };
+type Result_3 = 
+ variant {
+   err: text;
+   ok: Profile;
+ };
+type Result_2 = 
+ variant {
+   err: text;
+   ok;
+ };
+type Result_1 = 
+ variant {
+   err: text;
+   ok: Ticket;
+ };
+type Result = 
+ variant {
+   err: text;
+   ok: Statistics;
+ };
+type Record = 
+ record {
+   bestMs: nat;
+   completions: nat;
+   lastMs: nat;
+   rulesVersion: nat;
+   track: text;
+   updatedAt: int;
+ };
+type Receipt = 
+ record {
+   id: nat;
+   newBest: bool;
+   "record": Record;
+ };
+type Profile = 
+ record {
+   listed: bool;
+   nickname: text;
+   skin: Skin;
+ };
+type Leader = 
+ record {
+   bestMs: nat;
+   completions: nat;
+   isYou: bool;
+   nickname: text;
+   skin: Skin;
+ };
+type CourseStats = 
+ record {
+   finishes: nat;
+   rulesVersion: nat;
+   saved: nat;
+   starts: nat;
+   track: text;
+ };
+service : {
+  adminStatistics: () -> (Result) query;
+  beginDelivery: (key: blob, track: text, rulesVersion: nat) -> (Result_1);
+  claimDelivery: (key: blob, id: nat, publish: bool) -> (Result_8);
+  completeDelivery: (key: blob, id: nat, elapsedMs: nat) -> (Result_2);
+  ensureProfile: () -> (Result_3);
+  finishRun: (id: nat, elapsedMs: nat) -> (Result_8);
+  gameOpened: (key: blob) -> (Result_2);
+  leaderboard: (track: text, rulesVersion: nat) -> (Result_7) query;
+  listStatisticsReaders: () -> (Result_6) query;
+  myProfile: () -> (Result_5) query;
+  myRecords: () -> (Result_4) query;
+  saveProfile: (value: Profile) -> (Result_3);
+  setStatisticsReader: (reader: principal, enabled: bool) -> (Result_2);
+  startRun: (track: text, rulesVersion: nat) -> (Result_1);
+  statistics: () -> (Result) query;
+  version: () -> (text) query;
+}
